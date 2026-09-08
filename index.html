@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRACE | Phishing Attribution Console</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <!-- Leaflet.js Map Library -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    
+    <style>
+        :root {
+            /* Vibe Coded Cyber/Terminal Palette */
+            --color-bg-base: #07080c;
+            --color-bg-surface: #0f121d;
+            --color-bg-surface-hover: #181d2e;
+            --color-border: #21283d;
+            --color-border-active: #00f0ff;
+            
+            --color-text-primary: #f1f5f9;
+            --color-text-secondary: #7e8b9b;
+            
+            --color-primary: #00f0ff; /* Electric Cyan */
+            --color-primary-hover: #00c4d1;
+            --color-primary-dark: rgba(0, 240, 255, 0.1);
+            
+            --color-success: #00ff88; /* Neon Mint */
+            --color-warning: #ffb700; /* Tactical Amber */
+            --color-danger: #ff0055;  /* Neon Pink/Red */
+            
+            --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            
+            /* Sharp Corners Everywhere */
+            --radius-md: 0px;
+            --radius-lg: 0px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; border-radius: 0 !important; }
+        body { font-family: var(--font-sans); background-color: var(--color-bg-base); color: var(--color-text-primary); display: flex; height: 100vh; overflow: hidden; font-size: 14px; line-height: 1.5; }
+
+        .app-layout { display: flex; width: 100%; height: 100%; }
+        
+        /* Sidebar Navigation */
+        .sidebar { width: 260px; background-color: var(--color-bg-surface); border-right: 1px solid var(--color-border); display: flex; flex-direction: column; }
+        .sidebar-header { padding: 20px; border-bottom: 1px solid var(--color-border); display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 15px; letter-spacing: 1px; color: var(--color-primary); font-family: var(--font-mono); }
+        .sidebar-header i { font-size: 20px; }
+        .sidebar-nav { flex: 1; padding: 16px 12px; overflow-y: auto; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; color: var(--color-text-secondary); text-decoration: none; transition: all 0.15s ease; cursor: pointer; margin-bottom: 6px; border-left: 2px solid transparent; font-size: 13px; font-weight: 500; }
+        .nav-item:hover { background-color: var(--color-bg-surface-hover); color: var(--color-text-primary); border-left-color: var(--color-text-secondary); }
+        .nav-item.active { background-color: var(--color-primary-dark); color: var(--color-primary); border-left-color: var(--color-primary); font-weight: 600; }
+        
+        /* Integration Status Box */
+        .system-status-widget { margin: 12px; padding: 16px; background-color: var(--color-bg-base); border: 1px solid var(--color-border); }
+        .system-status-widget h4 { font-size: 10px; text-transform: uppercase; color: var(--color-text-secondary); margin-bottom: 12px; letter-spacing: 1px; font-family: var(--font-mono); }
+        .status-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; font-family: var(--font-mono); }
+        .status-indicator { display: flex; align-items: center; gap: 6px; color: var(--color-success); font-size: 11px; }
+        .dot { width: 6px; height: 6px; background-color: var(--color-success); box-shadow: 0 0 6px var(--color-success); }
+        
+        /* Main Wrapper */
+        .main-wrapper { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* Header */
+        .top-header { height: 64px; background-color: var(--color-bg-surface); border-bottom: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: relative; z-index: 10; }
+        .search-container { position: relative; width: 320px; }
+        .search-container i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--color-text-secondary); }
+        .search-input { width: 100%; background-color: var(--color-bg-base); border: 1px solid var(--color-border); color: var(--color-text-primary); padding: 9px 12px 9px 36px; outline: none; font-size: 13px; font-family: var(--font-mono); transition: border-color 0.2s; }
+        .search-input:focus { border-color: var(--color-primary); }
+        
+        .header-actions { display: flex; align-items: center; gap: 16px; }
+        .btn-primary { background-color: var(--color-primary); color: #000; border: none; padding: 9px 18px; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: 0.5px; text-transform: uppercase; font-family: var(--font-mono); }
+        .btn-primary:hover { background-color: var(--color-primary-hover); box-shadow: 0 0 12px rgba(0, 240, 255, 0.4); }
+
+        /* Notification Component Styles */
+        .notification-wrapper { position: relative; }
+        .bell-btn { background: var(--color-bg-base); border: 1px solid var(--color-border); color: var(--color-text-secondary); font-size: 16px; cursor: pointer; position: relative; padding: 8px 12px; transition: all 0.2s; }
+        .bell-btn:hover { color: var(--color-primary); border-color: var(--color-primary); }
+        .notif-badge { position: absolute; top: -6px; right: -6px; background-color: var(--color-danger); color: #fff; font-size: 9px; font-weight: 700; padding: 1px 5px; min-width: 14px; text-align: center; font-family: var(--font-mono); display: none; }
+
+        .notif-dropdown { position: absolute; top: 48px; right: 0; width: 360px; background-color: var(--color-bg-surface); border: 1px solid var(--color-primary); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6); display: none; flex-direction: column; z-index: 1000; overflow: hidden; }
+        .notif-dropdown.show { display: flex; }
+        .notif-header { padding: 14px 16px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 700; text-transform: uppercase; font-family: var(--font-mono); letter-spacing: 0.5px; }
+        .notif-clear-btn { background: none; border: none; color: var(--color-primary); font-size: 11px; cursor: pointer; font-family: var(--font-mono); }
+        .notif-clear-btn:hover { text-decoration: underline; }
+        .notif-body { max-height: 320px; overflow-y: auto; }
+        .notif-item { padding: 12px 16px; border-bottom: 1px solid var(--color-border); transition: background 0.2s; }
+        .notif-item:last-child { border-bottom: none; }
+        .notif-item:hover { background-color: var(--color-bg-surface-hover); }
+        .notif-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .notif-title { font-size: 12px; font-weight: 600; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px; }
+        .notif-time { font-size: 10px; color: var(--color-text-secondary); font-family: var(--font-mono); }
+        .notif-msg { font-size: 12px; color: var(--color-text-secondary); line-height: 1.4; word-break: break-word; }
+
+        /* Content Area */
+        .content-area { flex: 1; overflow-y: auto; padding: 24px; }
+        .page-title { margin-bottom: 24px; border-left: 3px solid var(--color-primary); padding-left: 12px; }
+        .page-title h1 { font-size: 18px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-family: var(--font-mono); }
+        .page-title p { color: var(--color-text-secondary); font-size: 12px; margin-top: 2px; }
+
+        /* View Tab Visibility Toggle */
+        .tab-view { display: none; }
+        .tab-view.active-view { display: block; }
+
+        /* Grid System */
+        .grid-container { display: grid; gap: 20px; margin-bottom: 24px; }
+        .grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+        .grid-full { grid-template-columns: 1fr; }
+
+        /* Card Component */
+        .card { background-color: var(--color-bg-surface); border: 1px solid var(--color-border); padding: 20px; position: relative; }
+        .card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: transparent; transition: background 0.2s; }
+        .card:hover::before { background: var(--color-primary); }
+        
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .card-title { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px; font-family: var(--font-mono); }
+
+        /* Metric Styling */
+        .metric-value { font-size: 32px; font-weight: 700; margin-bottom: 4px; font-family: var(--font-mono); color: var(--color-text-primary); }
+        .metric-subtext { font-size: 11px; color: var(--color-text-secondary); }
+
+        /* Table Components */
+        .table-responsive { width: 100%; overflow-x: auto; }
+        .data-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .data-table th { color: var(--color-text-secondary); font-weight: 600; font-size: 11px; padding: 12px; border-bottom: 1px solid var(--color-border); text-transform: uppercase; font-family: var(--font-mono); letter-spacing: 0.5px; background-color: var(--color-bg-base); }
+        .data-table td { padding: 12px; font-size: 13px; border-bottom: 1px solid var(--color-border); }
+        .empty-row { text-align: center; color: var(--color-text-secondary); padding: 36px !important; }
+
+        .badge { padding: 3px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; font-family: var(--font-mono); letter-spacing: 0.5px; display: inline-block; }
+        .badge-critical { background-color: rgba(255, 0, 85, 0.15); color: var(--color-danger); border: 1px solid var(--color-danger); }
+        .badge-warning { background-color: rgba(255, 183, 0, 0.15); color: var(--color-warning); border: 1px solid var(--color-warning); }
+        .badge-success { background-color: rgba(0, 255, 136, 0.15); color: var(--color-success); border: 1px solid var(--color-success); }
+
+        .progress-track { width: 100%; height: 4px; background-color: var(--color-bg-base); overflow: hidden; }
+        .progress-fill { height: 100%; background-color: var(--color-primary); box-shadow: 0 0 8px var(--color-primary); }
+
+        /* Modal / Pipeline Terminal */
+        .modal-overlay { position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); display: none; place-items: center; z-index: 1000; }
+        .terminal-modal { width: 100%; max-width: 720px; background-color: #000; border: 1px solid var(--color-primary); box-shadow: 0 0 30px rgba(0, 240, 255, 0.2); }
+        .terminal-header { background-color: var(--color-bg-surface); padding: 12px 16px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; }
+        .terminal-title { font-family: var(--font-mono); font-size: 11px; color: var(--color-primary); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+        .terminal-close { cursor: pointer; color: var(--color-text-secondary); background: none; border: none; font-size: 16px; transition: color 0.2s; }
+        .terminal-close:hover { color: var(--color-danger); }
+        .terminal-body { height: 400px; padding: 16px; overflow-y: auto; font-family: var(--font-mono); font-size: 12px; line-height: 1.6; background-color: #040508; }
+        
+        .log-row { margin-bottom: 4px; display: flex; gap: 12px; }
+        .log-time { color: #4a5568; white-space: nowrap; }
+        .log-msg { color: #cbd5e1; word-break: break-all; }
+        .log-success .log-msg { color: var(--color-success); }
+        .log-warn .log-msg { color: var(--color-warning); }
+        .log-highlight .log-msg { color: var(--color-primary); font-weight: bold; }
+        .cursor-blink { display: inline-block; width: 8px; height: 14px; background-color: var(--color-primary); animation: blink 1s step-end infinite; vertical-align: text-bottom; margin-left: 4px; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        /* Geo-Locate Button */
+        .btn-geo { background: none; border: 1px solid var(--color-border); color: var(--color-primary); padding: 4px 10px; cursor: pointer; font-size: 11px; font-family: var(--font-mono); transition: all 0.2s; display: inline-flex; align-items: center; gap: 5px; }
+        .btn-geo:hover { border-color: var(--color-primary); box-shadow: 0 0 8px rgba(0, 240, 255, 0.3); background-color: var(--color-primary-dark); }
+
+        /* Geolocation Floating Panel */
+        .geo-panel { position: fixed; bottom: 20px; right: 20px; width: 420px; background-color: var(--color-bg-surface); border: 1px solid var(--color-primary); box-shadow: 0 0 30px rgba(0, 240, 255, 0.15), 0 8px 32px rgba(0,0,0,0.6); z-index: 2000; display: none; flex-direction: column; overflow: hidden; transition: all 0.25s ease; }
+        .geo-panel.visible { display: flex; }
+        .geo-panel.minimized { width: 280px; height: 40px !important; }
+        .geo-panel.minimized .geo-panel-body { display: none; }
+
+        .geo-panel-header { background-color: var(--color-bg-base); padding: 10px 14px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; cursor: move; user-select: none; }
+        .geo-panel-title { font-family: var(--font-mono); font-size: 11px; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; display: flex; align-items: center; gap: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .geo-panel-controls { display: flex; gap: 4px; flex-shrink: 0; }
+        .geo-panel-controls button { background: none; border: 1px solid var(--color-border); color: var(--color-text-secondary); width: 26px; height: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; transition: all 0.15s; }
+        .geo-panel-controls button:hover { color: var(--color-primary); border-color: var(--color-primary); }
+        .geo-panel-controls .geo-close-btn:hover { color: var(--color-danger); border-color: var(--color-danger); }
+
+        .geo-panel-body { display: flex; flex-direction: column; overflow: hidden; }
+        .geo-map-container { height: 220px; width: 100%; background-color: #0a0d14; position: relative; }
+        .geo-map-container .leaflet-container { height: 100%; width: 100%; background: #0a0d14; }
+
+        .geo-details { padding: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; border-top: 1px solid var(--color-border); }
+        .geo-detail-item { display: flex; flex-direction: column; gap: 2px; }
+        .geo-detail-label { font-size: 9px; text-transform: uppercase; color: var(--color-text-secondary); letter-spacing: 0.8px; font-family: var(--font-mono); font-weight: 600; }
+        .geo-detail-value { font-size: 12px; color: var(--color-text-primary); font-family: var(--font-mono); word-break: break-all; }
+
+        .geo-loading { display: flex; align-items: center; justify-content: center; padding: 40px; flex-direction: column; gap: 12px; color: var(--color-text-secondary); font-family: var(--font-mono); font-size: 11px; }
+
+        .geo-error { display: flex; align-items: center; justify-content: center; padding: 30px; flex-direction: column; gap: 8px; color: var(--color-danger); font-family: var(--font-mono); font-size: 11px; text-align: center; }
+
+        /* Leaflet tile filter for dark theme */
+        .geo-map-container .leaflet-tile { filter: invert(1) hue-rotate(200deg) brightness(0.8) contrast(1.1) saturate(0.3); }
+        .geo-map-container .leaflet-control-attribution { background: rgba(0,0,0,0.7) !important; color: var(--color-text-secondary) !important; font-size: 9px !important; }
+        .geo-map-container .leaflet-control-attribution a { color: var(--color-primary) !important; }
+    </style>
+</head>
+<body>
+
+    <div class="app-layout">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <i class="fas fa-shield-halved"></i>
+                <span>TRACE // ATTRIBUTION</span>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-item active" onclick="switchTab('overview', this)"><i class="fas fa-border-all"></i> Operations Overview</div>
+                <div class="nav-item" onclick="triggerFileUpload()"><i class="fas fa-file-import"></i> Ingest Evidence (.EML)</div>
+                <div class="nav-item" onclick="switchTab('clustering', this)"><i class="fas fa-diagram-project"></i> ML Clustering Maps</div>
+                <div class="nav-item" onclick="switchTab('iocs', this)"><i class="fas fa-fingerprint"></i> IOC Database</div>
+                <div class="nav-item" onclick="switchTab('reports', this)"><i class="fas fa-file-contract"></i> Campaign Reports</div>
+            </nav>
+
+            <div class="system-status-widget">
+                <h4>System Integration Status</h4>
+                <div class="status-row">
+                    <span style="color: var(--color-text-secondary)">Spring Boot API</span>
+                    <div class="status-indicator"><span class="dot"></span> ONLINE</div>
+                </div>
+                <div class="status-row">
+                    <span style="color: var(--color-text-secondary)">Python ML Engine</span>
+                    <div class="status-indicator"><span class="dot"></span> ONLINE</div>
+                </div>
+                <div class="status-row">
+                    <span style="color: var(--color-text-secondary)">PostgreSQL DB</span>
+                    <div class="status-indicator"><span class="dot"></span> ONLINE</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Wrapper -->
+        <div class="main-wrapper">
+            
+            <!-- Header -->
+            <header class="top-header">
+                <div class="search-container">
+                    <i class="fas fa-search"></i>
+                    <input type="text" class="search-input" placeholder="Query IOCs, domain vectors, hashes...">
+                </div>
+                <div class="header-actions">
+                    <input type="file" id="file-upload-input" style="display: none;" accept=".eml" onchange="startAnalysisPipeline()">
+                    <button class="btn-primary" onclick="triggerFileUpload()">
+                        <i class="fas fa-plus"></i> New Analysis
+                    </button>
+                    
+                    <!-- Notification Bell Component -->
+                    <div class="notification-wrapper">
+                        <button class="bell-btn" id="bell-btn" onclick="toggleNotifications(event)">
+                            <i class="far fa-bell"></i>
+                            <span id="notif-badge" class="notif-badge">0</span>
+                        </button>
+
+                        <div id="notif-dropdown" class="notif-dropdown" onclick="event.stopPropagation()">
+                            <div class="notif-header">
+                                <span>System Alerts</span>
+                                <button class="notif-clear-btn" onclick="clearNotifications()">Clear All</button>
+                            </div>
+                            <div class="notif-body" id="notif-list">
+                                <!-- Dynamic notifications inject here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Workspace -->
+            <main class="content-area">
+                
+                <!-- TAB 1: OPERATIONS OVERVIEW -->
+                <div id="view-overview" class="tab-view active-view">
+                    <div class="page-title">
+                        <h1>Operations Overview</h1>
+                        <p>Real-time telemetry and ML clustering synchronized via Spring Boot Integration Layer.</p>
+                    </div>
+
+                    <section class="grid-container grid-cols-4">
+                        <article class="card">
+                            <div class="card-header"><span class="card-title">Processed Payloads</span> <i class="fas fa-envelope" style="color: var(--color-primary)"></i></div>
+                            <div class="metric-value" id="metric-emails">0</div>
+                            <div class="metric-subtext">Awaiting input stream</div>
+                        </article>
+                        <article class="card">
+                            <div class="card-header"><span class="card-title">Extracted Features</span> <i class="fas fa-fingerprint" style="color: var(--color-primary)"></i></div>
+                            <div class="metric-value" id="metric-features">0</div>
+                            <div class="metric-subtext">No IOC signatures recorded</div>
+                        </article>
+                        <article class="card">
+                            <div class="card-header"><span class="card-title">Active ML Clusters</span> <i class="fas fa-diagram-project" style="color: var(--color-primary)"></i></div>
+                            <div class="metric-value" id="metric-clusters">0</div>
+                            <div class="metric-subtext">No cluster IDs mapped</div>
+                        </article>
+                        <article class="card">
+                            <div class="card-header"><span class="card-title">Campaign Matches</span> <i class="fas fa-bullseye" style="color: var(--color-primary)"></i></div>
+                            <div class="metric-value" id="metric-campaigns">0</div>
+                            <div class="metric-subtext">Confidence thresholds clear</div>
+                        </article>
+                    </section>
+
+                    <section class="grid-container grid-full">
+                        <article class="card">
+                            <div class="card-header"><span class="card-title">Recorded Campaign Attributes</span></div>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Cluster ID</th>
+                                            <th>Campaign Label</th>
+                                            <th>ML Confidence</th>
+                                            <th>Severity</th>
+                                            <th>Origin IP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="campaign-table-body">
+                                        <tr>
+                                            <td colspan="5" class="empty-row">
+                                                <i class="fas fa-inbox" style="font-size: 24px; margin-bottom: 8px; display: block; color: var(--color-text-secondary);"></i>
+                                                No campaigns recorded yet. Upload an <code>.eml</code> payload to run analysis.
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </article>
+                    </section>
+                </div>
+
+                <!-- TAB 2: ML CLUSTERING MAPS -->
+                <div id="view-clustering" class="tab-view">
+                    <div class="page-title">
+                        <h1>ML Clustering Maps</h1>
+                        <p>Dimensional representation of campaign similarity extracted via Python DBSCAN engine.</p>
+                    </div>
+                    <section class="grid-container grid-full">
+                        <article class="card">
+                            <div class="card-header"><span class="card-title">DBSCAN Vector Topology</span></div>
+                            <div style="height: 320px; display: flex; align-items: center; justify-content: center; flex-direction: column; color: var(--color-text-secondary); border: 1px dashed var(--color-border); background-color: var(--color-bg-base);">
+                                <i class="fas fa-diagram-project" style="font-size: 36px; margin-bottom: 12px; color: var(--color-primary);"></i>
+                                <p style="font-family: var(--font-mono); font-size: 13px; color: var(--color-text-primary);">Cluster Topology Engine Ready</p>
+                                <span style="font-size: 11px; margin-top: 6px; font-family: var(--font-mono);">REST Endpoint: <code>GET /api/v1/ml/clusters</code></span>
+                            </div>
+                        </article>
+                    </section>
+                </div>
+
+                <!-- TAB 3: IOC DATABASE -->
+                <div id="view-iocs" class="tab-view">
+                    <div class="page-title">
+                        <h1>IOC Database</h1>
+                        <p>Centralized index of extracted Indicator of Compromise vectors.</p>
+                    </div>
+                    <section class="grid-container grid-full">
+                        <article class="card">
+                            <div class="card-header"><span class="card-title">Extracted Threat Indicators</span></div>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Type</th>
+                                            <th>Indicator Value</th>
+                                            <th>Source Cluster</th>
+                                            <th>Risk Tier</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="ioc-table-body">
+                                        <tr>
+                                            <td colspan="4" class="empty-row">
+                                                No IOCs logged in state. Ingest file streams to populate indicators.
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </article>
+                    </section>
+                </div>
+
+                <!-- TAB 4: CAMPAIGN REPORTS -->
+                <div id="view-reports" class="tab-view">
+                    <div class="page-title">
+                        <h1>Campaign Reports</h1>
+                        <p>Exportable intelligence summaries synchronized from Spring Boot persistence layer.</p>
+                    </div>
+                    <section class="grid-container grid-full">
+                        <article class="card">
+                            <div class="card-header">
+                                <span class="card-title">Generated Attribution Reports</span>
+                                <button class="btn-primary" style="font-size: 11px; padding: 6px 12px;" onclick="fetchCampaignReports()">
+                                    <i class="fas fa-arrows-rotate"></i> Sync REST API
+                                </button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Report Reference ID</th>
+                                            <th>Target Campaign</th>
+                                            <th>Timestamp</th>
+                                            <th>Status</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="reports-table-body">
+                                        <tr>
+                                            <td colspan="5" class="empty-row">
+                                                <i class="fas fa-spinner fa-spin" style="font-size: 20px; margin-bottom: 8px; display: block; color: var(--color-primary);"></i>
+                                                Connecting to <code>GET /api/v1/reports</code>...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </article>
+                    </section>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Pipeline Terminal Modal -->
+    <div id="pipeline-modal" class="modal-overlay" onclick="handleOverlayClick(event)">
+        <div class="terminal-modal">
+            <div class="terminal-header">
+                <span class="terminal-title"><i class="fas fa-terminal"></i> Pipeline Execution Matrix (Spring Boot Layer)</span>
+                <button class="terminal-close" onclick="closePipelineModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="terminal-body" id="terminal-logs">
+                <div id="terminal-cursor" class="cursor-blink"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Geolocation Floating Panel -->
+    <div id="geo-panel" class="geo-panel">
+        <div class="geo-panel-header" id="geo-panel-header">
+            <span class="geo-panel-title" id="geo-panel-title">
+                <i class="fas fa-globe"></i> <span id="geo-title-text">IP GEOLOCATION</span>
+            </span>
+            <div class="geo-panel-controls">
+                <button onclick="toggleMinimizeGeo()" title="Minimize / Restore" id="geo-minimize-btn"><i class="fas fa-minus"></i></button>
+                <button onclick="closeGeoPanel()" title="Close" class="geo-close-btn"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <div class="geo-panel-body" id="geo-panel-body">
+            <div class="geo-map-container">
+                <div id="geo-map"></div>
+            </div>
+            <div class="geo-details" id="geo-details">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            emailsProcessed: 0,
+            featuresExtracted: 0,
+            activeClusters: 0,
+            campaignMatches: 0,
+            campaigns: [],
+            notifications: [],
+            unreadNotifCount: 0
+        };
+
+        const uiState = {
+            modalOpen: false,
+            isProcessing: false
+        };
+
+        // --- Notification System Engine ---
+        function toggleNotifications(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('notif-dropdown');
+            const isShowing = dropdown.classList.contains('show');
+            
+            if (!isShowing) {
+                dropdown.classList.add('show');
+                state.unreadNotifCount = 0;
+                updateNotifBadge();
+            } else {
+                dropdown.classList.remove('show');
+            }
+        }
+
+        function addNotification(title, message, iconType = 'info') {
+            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            let iconHtml = '<i class="fas fa-info-circle" style="color: var(--color-primary);"></i>';
+            if (iconType === 'success') iconHtml = '<i class="fas fa-circle-check" style="color: var(--color-success);"></i>';
+            if (iconType === 'warning') iconHtml = '<i class="fas fa-triangle-exclamation" style="color: var(--color-warning);"></i>';
+
+            state.notifications.unshift({
+                title,
+                message,
+                time: timeStr,
+                iconHtml
+            });
+
+            state.unreadNotifCount += 1;
+            updateNotifBadge();
+            renderNotifications();
+        }
+
+        function clearNotifications() {
+            state.notifications = [];
+            state.unreadNotifCount = 0;
+            updateNotifBadge();
+            renderNotifications();
+        }
+
+        function updateNotifBadge() {
+            const badge = document.getElementById('notif-badge');
+            if (state.unreadNotifCount > 0) {
+                badge.textContent = state.unreadNotifCount;
+                badge.style.display = 'block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        function renderNotifications() {
+            const container = document.getElementById('notif-list');
+            if (state.notifications.length === 0) {
+                container.innerHTML = `
+                    <div style="padding: 24px; text-align: center; color: var(--color-text-secondary); font-size: 11px; font-family: var(--font-mono);">
+                        <i class="far fa-bell-slash" style="font-size: 20px; margin-bottom: 8px; display: block; color: var(--color-text-secondary);"></i>
+                        NO NOTIFICATIONS IN QUEUE
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = '';
+            state.notifications.forEach(n => {
+                const item = document.createElement('div');
+                item.className = 'notif-item';
+                item.innerHTML = `
+                    <div class="notif-item-header">
+                        <span class="notif-title">${n.iconHtml} ${n.title}</span>
+                        <span class="notif-time">${n.time}</span>
+                    </div>
+                    <div class="notif-msg">${n.message}</div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        // --- Navigation Logic ---
+        function switchTab(viewId, element) {
+            document.querySelectorAll('.tab-view').forEach(view => view.classList.remove('active-view'));
+            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+
+            document.getElementById(`view-${viewId}`).classList.add('active-view');
+            if (element) element.classList.add('active');
+
+            if (viewId === 'reports') {
+                fetchCampaignReports();
+            }
+        }
+
+        // --- Backend Reports Loader ---
+        async function fetchCampaignReports() {
+            const tbody = document.getElementById('reports-table-body');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="empty-row">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 20px; margin-bottom: 8px; display: block; color: var(--color-primary);"></i>
+                        Fetching reports from Spring Boot REST API...
+                    </td>
+                </tr>`;
+
+            try {
+                const response = await fetch('/api/v1/reports');
+                if (!response.ok) throw new Error('API unreachable');
+                const reports = await response.json();
+                renderReportsTable(reports);
+            } catch (err) {
+                setTimeout(() => {
+                    if (state.campaigns.length === 0) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="5" class="empty-row">
+                                    No reports found on server. Ingest files or trigger API endpoints to produce campaign reports.
+                                </td>
+                            </tr>`;
+                    } else {
+                        const generatedReports = state.campaigns.map((c, i) => ({
+                            reportId: `REP-${1000 + i}`,
+                            title: `Attribution Report: ${c.label}`,
+                            timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+                            status: "READY"
+                        }));
+                        renderReportsTable(generatedReports);
+                    }
+                }, 400);
+            }
+        }
+
+        function renderReportsTable(reports) {
+            const tbody = document.getElementById('reports-table-body');
+            tbody.innerHTML = '';
+            reports.forEach(rep => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td style="font-family: var(--font-mono); color: var(--color-primary);">${rep.reportId}</td>
+                    <td>${rep.title}</td>
+                    <td style="font-family: var(--font-mono); font-size: 11px;">${rep.timestamp}</td>
+                    <td><span class="badge badge-success">${rep.status}</span></td>
+                    <td>
+                        <button style="background: none; border: 1px solid var(--color-border); color: var(--color-primary); padding: 4px 8px; cursor: pointer; font-size: 11px; font-family: var(--font-mono);">
+                            <i class="fas fa-download"></i> PDF
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function renderDashboard() {
+            document.getElementById('metric-emails').textContent = state.emailsProcessed.toLocaleString();
+            document.getElementById('metric-features').textContent = state.featuresExtracted.toLocaleString();
+            document.getElementById('metric-clusters').textContent = state.activeClusters.toLocaleString();
+            document.getElementById('metric-campaigns').textContent = state.campaignMatches.toLocaleString();
+
+            const tbody = document.getElementById('campaign-table-body');
+            
+            if (state.campaigns.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="empty-row">
+                            <i class="fas fa-inbox" style="font-size: 24px; margin-bottom: 8px; display: block;"></i>
+                            No campaigns recorded yet. Upload an <code>.eml</code> payload to run analysis.
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            state.campaigns.forEach(camp => {
+                let badgeClass = 'badge-success';
+                if (camp.severity === 'Critical') badgeClass = 'badge-critical';
+                if (camp.severity === 'Warning') badgeClass = 'badge-warning';
+
+                const confidencePct = Math.round(camp.conf * 100);
+                const ipCell = camp.originIp
+                    ? `<span style="font-family: var(--font-mono); font-size: 12px; color: var(--color-text-secondary); margin-right: 8px;">${camp.originIp}</span>
+                       <button class="btn-geo" onclick="openGeoPanel('${camp.originIp}')"><i class="fas fa-globe"></i> Locate</button>`
+                    : `<span style="color: var(--color-text-secondary); font-size: 11px;">—</span>`;
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td style="font-family: var(--font-mono); color: var(--color-primary); font-weight: bold;">${camp.id}</td>
+                    <td>${camp.label}</td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div class="progress-track" style="width: 100px;">
+                                <div class="progress-fill" style="width: ${confidencePct}%;"></div>
+                            </div>
+                            <span style="font-size: 11px; font-family: var(--font-mono); color: var(--color-text-secondary);">${confidencePct}%</span>
+                        </div>
+                    </td>
+                    <td><span class="badge ${badgeClass}">${camp.severity}</span></td>
+                    <td>${ipCell}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function triggerFileUpload() {
+            document.getElementById('file-upload-input').click();
+        }
+
+        function closePipelineModal() {
+            document.getElementById('pipeline-modal').style.display = 'none';
+            uiState.modalOpen = false;
+        }
+
+        function handleOverlayClick(event) {
+            if (event.target.id === 'pipeline-modal') {
+                closePipelineModal();
+            }
+        }
+
+        // Global click listener to close dropdown when clicking outside
+        document.addEventListener('click', () => {
+            const dropdown = document.getElementById('notif-dropdown');
+            if (dropdown && dropdown.classList.contains('show')) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        const getLogTimestamp = () => new Date().toISOString();
+
+        // --- Simulated IP Pool (your backend teammates will replace this with real extracted IPs) ---
+        // INTEGRATION POINT: When the Java backend returns analysis results, the response
+        // should include an `originIp` field. Replace `generateSimulatedIp()` calls with
+        // the actual IP from: response.data.originIp or response.data.iocs.ipAddresses[0]
+        const simulatedIpPool = [
+            '185.220.101.34', '91.219.236.197', '103.75.201.45', '45.134.26.174',
+            '194.26.29.113', '23.106.215.78', '162.247.74.27', '198.98.54.132',
+            '77.247.181.163', '109.70.100.34', '176.10.104.240', '51.75.52.118'
+        ];
+        function generateSimulatedIp() {
+            return simulatedIpPool[Math.floor(Math.random() * simulatedIpPool.length)];
+        }
+
+        function buildPipelineSequence(simulatedIp) {
+            return [
+                { class: "log-normal", msg: "Initiating multipart/form-data upload to Spring Boot..." },
+                { class: "log-highlight", msg: "POST /api/v1/emails/upload (Routing via API Gateway)" },
+                { class: "log-normal", msg: "Spring Boot [EmailParserService]: Extracting MIME parts and headers..." },
+                { class: "log-normal", msg: "Spring Boot [AuthAnalyzer]: Verifying SPF/DKIM/DMARC alignment." },
+                { class: "log-warn", msg: `Spring Boot [IOCExtractor]: Resolved origin IP from headers → ${simulatedIp}` },
+                { class: "log-warn", msg: "Spring Boot [IOCExtractor]: Flagged suspicious ASN origin." },
+                { class: "log-normal", msg: "Spring Boot [FeatureBuilder]: Compiling structured JSON vector payload." },
+                { class: "log-highlight", msg: "Spring Boot [ClusteringClient]: Executing REST call to ML Service -> POST /api/ml/cluster" },
+                { class: "log-normal", msg: "ML Service Model: Processing DBSCAN dimensions..." },
+                { class: "log-success", msg: "ML Service Response: 200 OK - { clusterId: 'C-001', confidence: 0.94, label: 'Parsed Email Campaign' }" },
+                { class: "log-highlight", msg: `Spring Boot [GeoResolver]: Querying geolocation for IP ${simulatedIp}...` },
+                { class: "log-success", msg: `Spring Boot [GeoResolver]: Location resolved — IP ${simulatedIp} mapped to coordinates.` },
+                { class: "log-normal", msg: "Spring Boot [PersistenceLayer]: Writing analysis telemetry to PostgreSQL..." },
+                { class: "log-success", msg: "Pipeline execution completed successfully." }
+            ];
+        }
+
+        async function startAnalysisPipeline() {
+            const fileInput = document.getElementById('file-upload-input');
+            if (fileInput.files.length === 0) return;
+            if (uiState.isProcessing) return;
+
+            uiState.isProcessing = true;
+            const fileName = fileInput.files[0].name;
+            const simulatedIp = generateSimulatedIp();
+
+            fileInput.value = ""; 
+
+            // Trigger Start Notification
+            addNotification("Pipeline Executing", `Started processing payload stream: ${fileName}`, "info");
+
+            const modal = document.getElementById('pipeline-modal');
+            const terminalLogs = document.getElementById('terminal-logs');
+            const cursor = document.getElementById('terminal-cursor');
+            
+            modal.style.display = 'grid';
+            uiState.modalOpen = true;
+            
+            Array.from(terminalLogs.children).forEach(child => {
+                if(child.id !== 'terminal-cursor') child.remove();
+            });
+
+            const appendLog = (logClass, text) => {
+                return new Promise(resolve => {
+                    const row = document.createElement('div');
+                    row.className = `log-row ${logClass}`;
+                    row.innerHTML = `<span class="log-time">[${getLogTimestamp()}]</span> <span class="log-msg">${text}</span>`;
+                    terminalLogs.insertBefore(row, cursor);
+                    terminalLogs.scrollTop = terminalLogs.scrollHeight;
+                    resolve();
+                });
+            };
+
+            await appendLog('log-normal', `Loaded file stream: ${fileName}`);
+
+            const pipelineSequence = buildPipelineSequence(simulatedIp);
+
+            for (const step of pipelineSequence) {
+                if (!uiState.modalOpen) break;
+                const ms = Math.floor(Math.random() * 300) + 120;
+                await new Promise(r => setTimeout(r, ms));
+                await appendLog(step.class, step.msg);
+            }
+            
+            if (uiState.modalOpen) {
+                state.emailsProcessed += 1;
+                state.featuresExtracted += 8;
+                state.activeClusters += 1;
+                state.campaignMatches += 1;
+                
+                const clusterId = `C-00${state.emailsProcessed}`;
+
+                // INTEGRATION POINT: Replace simulatedIp with real IP from backend response
+                // e.g., const originIp = backendResponse.extractedIocs.sourceIp;
+                state.campaigns.unshift({
+                    id: clusterId,
+                    label: `File: ${fileName}`,
+                    conf: 0.94,
+                    severity: "Warning",
+                    originIp: simulatedIp  // <-- IP from backend / ML pipeline
+                });
+
+                renderDashboard();
+
+                // Trigger Completion Notification
+                addNotification(
+                    "Attribution Generated", 
+                    `Payload ${fileName} assigned to Cluster ${clusterId}.`, 
+                    "success"
+                );
+
+                addNotification(
+                    "IP Geolocation Ready",
+                    `Origin IP ${simulatedIp} extracted from email headers. Click "Locate" to view on map.`,
+                    "info"
+                );
+            }
+
+            uiState.isProcessing = false;
+        }
+
+        // ============================================================
+        //  GEOLOCATION PANEL ENGINE
+        //  INTEGRATION POINT: Your backend teammates can call
+        //  openGeoPanel(ipAddress) from anywhere, or pass geoData
+        //  directly via openGeoPanelWithData(ipAddress, geoDataObject)
+        // ============================================================
+
+        let geoMap = null;
+        let geoMarker = null;
+        let geoPanelMinimized = false;
+        let geoDragState = { dragging: false, offsetX: 0, offsetY: 0 };
+
+        /**
+         * PRIMARY API — Open the geo panel for a given IP address.
+         * Fetches geolocation from ip-api.com (free, no key required).
+         * 
+         * INTEGRATION: Your Java backend can also pre-fetch geo data and pass it
+         * directly using openGeoPanelWithData() to skip the client-side API call.
+         * 
+         * @param {string} ipAddress - The IP address to geolocate
+         */
+        function openGeoPanel(ipAddress) {
+            const panel = document.getElementById('geo-panel');
+            const body = document.getElementById('geo-panel-body');
+            const titleText = document.getElementById('geo-title-text');
+            
+            // Reset state
+            panel.classList.remove('minimized');
+            panel.classList.add('visible');
+            panel.style.bottom = '20px';
+            panel.style.right = '20px';
+            panel.style.left = '';
+            panel.style.top = '';
+            geoPanelMinimized = false;
+            document.getElementById('geo-minimize-btn').innerHTML = '<i class="fas fa-minus"></i>';
+            
+            titleText.textContent = `IP: ${ipAddress}`;
+
+            // Show loading state
+            body.innerHTML = `
+                <div class="geo-loading">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 24px; color: var(--color-primary);"></i>
+                    <span>Resolving geolocation for ${ipAddress}...</span>
+                </div>`;
+
+            // INTEGRATION POINT: Replace this fetch with your backend endpoint if preferred
+            // e.g., fetch(`/api/v1/geo/${ipAddress}`) for the Spring Boot backend
+            fetch(`http://ip-api.com/json/${ipAddress}?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,query`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'fail') {
+                        showGeoError(ipAddress, data.message || 'Lookup failed');
+                        return;
+                    }
+                    renderGeoPanel(ipAddress, data);
+                })
+                .catch(err => {
+                    showGeoError(ipAddress, 'Network error — API unreachable');
+                });
+        }
+
+        /**
+         * DIRECT DATA API — Open the geo panel with pre-fetched geo data.
+         * Use this when the Java/Python backend already has the geo data.
+         * 
+         * Expected geoData format:
+         * {
+         *   country: "United States",
+         *   countryCode: "US",
+         *   regionName: "California",
+         *   city: "San Francisco",
+         *   zip: "94102",
+         *   lat: 37.7749,
+         *   lon: -122.4194,
+         *   timezone: "America/Los_Angeles",
+         *   isp: "Cloudflare Inc",
+         *   org: "Cloudflare",
+         *   as: "AS13335 Cloudflare Inc"
+         * }
+         * 
+         * @param {string} ipAddress - The IP address
+         * @param {object} geoData - Pre-fetched geolocation data
+         */
+        function openGeoPanelWithData(ipAddress, geoData) {
+            const panel = document.getElementById('geo-panel');
+            const titleText = document.getElementById('geo-title-text');
+
+            panel.classList.remove('minimized');
+            panel.classList.add('visible');
+            panel.style.bottom = '20px';
+            panel.style.right = '20px';
+            panel.style.left = '';
+            panel.style.top = '';
+            geoPanelMinimized = false;
+            document.getElementById('geo-minimize-btn').innerHTML = '<i class="fas fa-minus"></i>';
+            titleText.textContent = `IP: ${ipAddress}`;
+
+            renderGeoPanel(ipAddress, geoData);
+        }
+
+        function showGeoError(ip, errorMsg) {
+            const body = document.getElementById('geo-panel-body');
+            body.innerHTML = `
+                <div class="geo-error">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 24px;"></i>
+                    <span>Failed to resolve ${ip}</span>
+                    <span style="font-size: 10px; color: var(--color-text-secondary);">${errorMsg}</span>
+                    <button class="btn-geo" onclick="openGeoPanel('${ip}')" style="margin-top: 8px;">
+                        <i class="fas fa-arrows-rotate"></i> Retry
+                    </button>
+                </div>`;
+        }
+
+        function renderGeoPanel(ipAddress, data) {
+            const body = document.getElementById('geo-panel-body');
+            
+            body.innerHTML = `
+                <div class="geo-map-container">
+                    <div id="geo-map" style="height: 100%; width: 100%;"></div>
+                </div>
+                <div class="geo-details" id="geo-details">
+                    <div class="geo-detail-item">
+                        <span class="geo-detail-label">Country</span>
+                        <span class="geo-detail-value">${data.country || '—'} ${data.countryCode ? '(' + data.countryCode + ')' : ''}</span>
+                    </div>
+                    <div class="geo-detail-item">
+                        <span class="geo-detail-label">City / Region</span>
+                        <span class="geo-detail-value">${data.city || '—'}, ${data.regionName || '—'}</span>
+                    </div>
+                    <div class="geo-detail-item">
+                        <span class="geo-detail-label">Coordinates</span>
+                        <span class="geo-detail-value">${data.lat?.toFixed(4) || '—'}, ${data.lon?.toFixed(4) || '—'}</span>
+                    </div>
+                    <div class="geo-detail-item">
+                        <span class="geo-detail-label">Timezone</span>
+                        <span class="geo-detail-value">${data.timezone || '—'}</span>
+                    </div>
+                    <div class="geo-detail-item">
+                        <span class="geo-detail-label">ISP</span>
+                        <span class="geo-detail-value">${data.isp || '—'}</span>
+                    </div>
+                    <div class="geo-detail-item">
+                        <span class="geo-detail-label">Organization</span>
+                        <span class="geo-detail-value">${data.org || '—'}</span>
+                    </div>
+                    <div class="geo-detail-item" style="grid-column: 1 / -1;">
+                        <span class="geo-detail-label">ASN</span>
+                        <span class="geo-detail-value">${data.as || '—'}</span>
+                    </div>
+                </div>`;
+
+            // Initialize Leaflet map
+            setTimeout(() => {
+                const mapEl = document.getElementById('geo-map');
+                if (!mapEl) return;
+
+                if (geoMap) {
+                    geoMap.remove();
+                    geoMap = null;
+                }
+
+                const lat = data.lat || 0;
+                const lon = data.lon || 0;
+
+                geoMap = L.map('geo-map', {
+                    zoomControl: true,
+                    attributionControl: true
+                }).setView([lat, lon], 6);
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap',
+                    maxZoom: 18
+                }).addTo(geoMap);
+
+                // Custom cyan marker
+                const markerIcon = L.divIcon({
+                    html: `<div style="
+                        width: 16px; height: 16px;
+                        background: var(--color-primary, #00f0ff);
+                        border: 2px solid #fff;
+                        box-shadow: 0 0 12px rgba(0, 240, 255, 0.7);
+                        border-radius: 50%;
+                    "></div>`,
+                    className: '',
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8]
+                });
+
+                geoMarker = L.marker([lat, lon], { icon: markerIcon }).addTo(geoMap);
+                geoMarker.bindPopup(`
+                    <div style="font-family: monospace; font-size: 11px; min-width: 160px;">
+                        <strong style="color: #00f0ff;">${ipAddress}</strong><br>
+                        ${data.city || ''}, ${data.country || ''}<br>
+                        <span style="color: #888;">ISP: ${data.isp || '—'}</span>
+                    </div>
+                `).openPopup();
+
+                // Force map resize after render
+                setTimeout(() => geoMap.invalidateSize(), 100);
+            }, 50);
+        }
+
+        function toggleMinimizeGeo() {
+            const panel = document.getElementById('geo-panel');
+            const btn = document.getElementById('geo-minimize-btn');
+            
+            if (geoPanelMinimized) {
+                panel.classList.remove('minimized');
+                btn.innerHTML = '<i class="fas fa-minus"></i>';
+                geoPanelMinimized = false;
+                // Refresh map size after restore
+                setTimeout(() => { if (geoMap) geoMap.invalidateSize(); }, 100);
+            } else {
+                panel.classList.add('minimized');
+                btn.innerHTML = '<i class="fas fa-expand"></i>';
+                geoPanelMinimized = true;
+            }
+        }
+
+        function closeGeoPanel() {
+            const panel = document.getElementById('geo-panel');
+            panel.classList.remove('visible', 'minimized');
+            geoPanelMinimized = false;
+            if (geoMap) {
+                geoMap.remove();
+                geoMap = null;
+            }
+        }
+
+        // --- Draggable Panel Logic ---
+        (function initGeoDrag() {
+            document.addEventListener('mousedown', (e) => {
+                const header = document.getElementById('geo-panel-header');
+                if (!header || !header.contains(e.target)) return;
+                // Don't drag if clicking buttons
+                if (e.target.closest('.geo-panel-controls')) return;
+
+                const panel = document.getElementById('geo-panel');
+                const rect = panel.getBoundingClientRect();
+                geoDragState.dragging = true;
+                geoDragState.offsetX = e.clientX - rect.left;
+                geoDragState.offsetY = e.clientY - rect.top;
+                panel.style.transition = 'none';
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!geoDragState.dragging) return;
+                const panel = document.getElementById('geo-panel');
+                const x = e.clientX - geoDragState.offsetX;
+                const y = e.clientY - geoDragState.offsetY;
+                panel.style.left = x + 'px';
+                panel.style.top = y + 'px';
+                panel.style.right = 'auto';
+                panel.style.bottom = 'auto';
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (geoDragState.dragging) {
+                    geoDragState.dragging = false;
+                    const panel = document.getElementById('geo-panel');
+                    panel.style.transition = '';
+                }
+            });
+        })();
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderDashboard();
+            renderNotifications();
+        });
+    </script>
+</body>
+</html>
