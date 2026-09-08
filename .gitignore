@@ -1,0 +1,26 @@
+# Python virtual environment
+.venv/
+
+# Python cache / bytecode
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyc
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# VS Code
+.vscode/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Training datasets / generated training data
+training/dataset/*.xlsx
+training/dataset/*.csv
+
+# Large generated ML artifact
+src/models/url_reputation_model.pkl
