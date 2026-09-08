@@ -24,3 +24,7 @@ training/dataset/*.csv
 
 # Large generated ML artifact
 src/models/url_reputation_model.pkl
+# Java / Maven build files
+backend/target/
+backend/.idea/
+*.class

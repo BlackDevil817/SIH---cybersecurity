@@ -1,0 +1,3 @@
+This is not really a proper RFC822 email at all.
+It has no colon-separated headers and no blank-line body separator worth mentioning
+just some random text that a corrupted or malicious upload might contain %%%$$$ ???
