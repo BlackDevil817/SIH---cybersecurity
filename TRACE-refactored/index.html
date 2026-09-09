@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRACE | Phishing Attribution Console</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <!-- Leaflet.js Map Library -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <div class="app-layout">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <i class="fas fa-shield-halved"></i>
+                <span>TRACE // ATTRIBUTION</span>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-item active" onclick="switchTab('overview', this)"><i class="fas fa-border-all"></i> Operations Overview</div>
+                <div class="nav-item" onclick="triggerFileUpload()"><i class="fas fa-file-import"></i> Ingest Evidence (.EML)</div>
+                <div class="nav-item" onclick="switchTab('clustering', this)"><i class="fas fa-diagram-project"></i> ML Clustering Maps</div>
+                <div class="nav-item" onclick="switchTab('iocs', this)"><i class="fas fa-fingerprint"></i> IOC Database</div>
+                <div class="nav-item" onclick="switchTab('reports', this)"><i class="fas fa-file-contract"></i> Campaign Reports</div>
+            </nav>
+
+            <div class="system-status-widget">
+                <h4>System Integration Status</h4>
+                <div class="status-row">
+                    <span style="color: var(--color-text-secondary)">Spring Boot API</span>
+                    <div class="status-indicator"><span class="dot"></span> ONLINE</div>
+                </div>
+                <div class="status-row">
+                    <span style="color: var(--color-text-secondary)">Python ML Engine</span>
+                    <div class="status-indicator"><span class="dot"></span> ONLINE</div>
+                </div>
+                <div class="status-row">
+                    <span style="color: var(--color-text-secondary)">PostgreSQL DB</span>
+                    <div class="status-indicator"><span class="dot"></span> ONLINE</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Wrapper -->
+        <div class="main-wrapper">
+            
+            <!-- Header -->
+            <header class="top-header">
+                <div class="search-container">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="global-search-input" class="search-input" placeholder="Query IOCs, domain vectors, hashes..." oninput="handleGlobalSearch(this.value)" onkeydown="if(event.key==='Escape'){this.value='';handleGlobalSearch('');}">
+                </div>
+                <div class="header-actions">
+                    <input type="file" id="file-upload-input" style="display: none;" accept=".eml" onchange="handleFileUploadChange(event)">
+                    <button class="btn-clear" onclick="clearAllTelemetry()" title="Reset session: purge all IOCs, campaigns, and search history">
+                        <i class="fas fa-rotate-left"></i> Reset State
+                    </button>
+                    <button class="btn-primary" onclick="triggerFileUpload()">
+                        <i class="fas fa-plus"></i> New Analysis
+                    </button>
+                    
+                    <!-- Notification Bell Component -->
+                    <div class="notification-wrapper">
+                        <button class="bell-btn" id="bell-btn" onclick="toggleNotifications(event)">
+                            <i class="far fa-bell"></i>
+                            <span id="notif-badge" class="notif-badge">0</span>
+                        </button>
+
+                        <div id="notif-dropdown" class="notif-dropdown" onclick="event.stopPropagation()">
+                            <div class="notif-header">
+                                <span>System Alerts</span>
+                                <button class="notif-clear-btn" onclick="clearNotifications()">Clear All</button>
+                            </div>
+                            <div class="notif-body" id="notif-list">
+                                <!-- Dynamic notifications inject here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Workspace -->
+            <main class="content-area">
+                
+                <!-- TAB 1: OPERATIONS OVERVIEW -->
+                <div id="view-overview" class="tab-view active-view">
+                    <div class="page-title">
+                        <h1>Operations Overview</h1>
+                        <p>Real-time telemetry and ML clustering synchronized via Spring Boot Integration Layer.</p>
+                    </div>
+
+                    <section class="grid-container grid-cols-4">
+                        <article class="card">
+                            <div class="card-header"><span class="card-title">Processed Payloads</span> <i class="fas fa-envelope" style="color: var(--color-primary)"></i></div>
+                            <div class="metric-value" id="metric-emails">0</div>
+                            <div class="metric-subtext" id="subtext-emails">Awaiting input stream</div>
+                        </article>
+                        <article class="card">
+                            <div class="card-header"><span class="card-title">Extracted Features</span> <i class="fas fa-fingerprint" style="color: var(--color-primary)"></i></div>
+                            <div class="metric-value" id="metric-features">0</div>
+                            <div class="metric-subtext" id="subtext-features">No IOC signatures recorded</div>
+                        </article>
+                        <article class="card">
+                            <div class="card-header"><span class="card-title">Active ML Clusters</span> <i class="fas fa-diagram-project" style="color: var(--color-primary)"></i></div>
+                            <div class="metric-value" id="metric-clusters">0</div>
+                            <div class="metric-subtext" id="subtext-clusters">No cluster IDs mapped</div>
+                        </article>
+                        <article class="card">
+                            <div class="card-header"><span class="card-title">Campaign Matches</span> <i class="fas fa-bullseye" style="color: var(--color-primary)"></i></div>
+                            <div class="metric-value" id="metric-campaigns">0</div>
+                            <div class="metric-subtext" id="subtext-campaigns">Confidence thresholds clear</div>
+                        </article>
+                    </section>
+
+                    <section class="grid-container grid-full">
+                        <article class="card">
+                            <div class="card-header"><span class="card-title">Recorded Campaign Attributes</span></div>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Cluster ID</th>
+                                            <th>Campaign Label</th>
+                                            <th>ML Confidence</th>
+                                            <th>Severity</th>
+                                            <th>Origin IP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="campaign-table-body">
+                                        <tr>
+                                            <td colspan="5" class="empty-row">
+                                                <i class="fas fa-inbox" style="font-size: 24px; margin-bottom: 8px; display: block; color: var(--color-text-secondary);"></i>
+                                                No campaigns recorded yet. Upload an <code>.eml</code> payload to run analysis.
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </article>
+                    </section>
+                </div>
+
+                <!-- TAB 2: ML CLUSTERING MAPS -->
+                <div id="view-clustering" class="tab-view">
+                    <div class="page-title" style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <h1>ML Clustering Maps</h1>
+                            <p>Dimensional representation of campaign similarity extracted via Python DBSCAN engine.</p>
+                        </div>
+                        <div style="font-family: var(--font-mono); font-size: 11px; display: flex; gap: 14px; background: var(--color-bg-surface); padding: 8px 14px; border: 1px solid var(--color-border);">
+                            <span style="color: var(--color-text-secondary);">Model: <strong style="color: var(--color-primary);">DBSCAN (scikit-learn)</strong></span>
+                            <span style="color: var(--color-text-secondary);">Eps: <strong style="color: var(--color-primary);">0.35</strong></span>
+                            <span style="color: var(--color-text-secondary);">MinPts: <strong style="color: var(--color-primary);">3</strong></span>
+                            <span style="color: var(--color-text-secondary);">Metric: <strong style="color: var(--color-primary);">Cosine</strong></span>
+                        </div>
+                    </div>
+
+                    <section class="grid-container grid-full">
+                        <article class="card">
+                            <div class="card-header">
+                                <span class="card-title"><i class="fas fa-diagram-project"></i> DBSCAN Vector Topology (2D PCA / t-SNE Projection)</span>
+                                <div class="cluster-legend" id="cluster-legend">
+                                    <div class="cluster-legend-item"><span class="cluster-legend-dot" style="background: #00f0ff;"></span> C-001 (Crimson Colibri)</div>
+                                    <div class="cluster-legend-item"><span class="cluster-legend-dot" style="background: #00ff88;"></span> C-002 (FIN7 / Carbon)</div>
+                                    <div class="cluster-legend-item"><span class="cluster-legend-dot" style="background: #ffb700;"></span> C-003 (DarkGate)</div>
+                                    <div class="cluster-legend-item"><span class="cluster-legend-dot" style="background: #7e8b9b;"></span> Noise Points</div>
+                                </div>
+                            </div>
+                            <div style="position: relative; width: 100%; height: 380px; background-color: #05070c; border: 1px solid var(--color-border); overflow: hidden;">
+                                <canvas id="cluster-canvas" width="900" height="380" style="width: 100%; height: 100%; display: block; cursor: crosshair;"></canvas>
+                                <div id="cluster-tooltip" class="cluster-tooltip"></div>
+                            </div>
+                            <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-family: var(--font-mono); color: var(--color-text-secondary);">
+                                <span><i class="fas fa-info-circle" style="color: var(--color-primary);"></i> Hover over nodes to inspect payload attributes & similarity scores. Pulse beacon denotes newly ingested stream.</span>
+                                <span>Coordinate Space: [-1.0, 1.0] Normalized Vector Latents</span>
+                            </div>
+                        </article>
+                    </section>
+
+                    <section class="grid-container grid-full">
+                        <article class="card">
+                            <div class="card-header">
+                                <span class="card-title">Cluster Signature Matrix</span>
+                                <span id="cluster-metrics-summary" style="font-family: var(--font-mono); font-size: 11px; color: var(--color-text-secondary);">3 Active Clusters // 1 Ingested Stream Assigned</span>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Cluster ID</th>
+                                            <th>Attributed Threat Campaign</th>
+                                            <th>Dominant TTP / Vector Profile</th>
+                                            <th>Payload Members</th>
+                                            <th>Confidence</th>
+                                            <th>Cluster State</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="clusters-table-body">
+                                        <!-- Dynamic cluster rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </article>
+                    </section>
+                </div>
+
+                <!-- TAB 3: IOC DATABASE -->
+                <div id="view-iocs" class="tab-view">
+                    <div class="page-title">
+                        <h1>IOC Database</h1>
+                        <p>Centralized index of extracted Indicator of Compromise vectors from analyzed EML streams.</p>
+                    </div>
+
+                    <div class="ioc-filter-bar">
+                        <button class="ioc-filter active" onclick="filterIocs('ALL', this)"><i class="fas fa-layer-group"></i> All Vectors (<span id="count-all-ioc">0</span>)</button>
+                        <button class="ioc-filter" onclick="filterIocs('IP', this)"><i class="fas fa-network-wired"></i> IP Addresses (<span id="count-ip-ioc">0</span>)</button>
+                        <button class="ioc-filter" onclick="filterIocs('DOMAIN', this)"><i class="fas fa-globe"></i> Domains (<span id="count-dom-ioc">0</span>)</button>
+                        <button class="ioc-filter" onclick="filterIocs('URL', this)"><i class="fas fa-link"></i> Phish URLs (<span id="count-url-ioc">0</span>)</button>
+                        <button class="ioc-filter" onclick="filterIocs('HASH', this)"><i class="fas fa-fingerprint"></i> Hashes (<span id="count-hash-ioc">0</span>)</button>
+                        <button class="ioc-filter" onclick="filterIocs('EMAIL', this)"><i class="fas fa-envelope"></i> Senders (<span id="count-email-ioc">0</span>)</button>
+                    </div>
+
+                    <section class="grid-container grid-full">
+                        <article class="card">
+                            <div class="card-header">
+                                <span class="card-title">Extracted Threat Indicators</span>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn-geo" onclick="exportIocCsv()"><i class="fas fa-file-csv"></i> Export CSV</button>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Type</th>
+                                            <th>Indicator Value</th>
+                                            <th>Context / Description</th>
+                                            <th>Source Cluster</th>
+                                            <th>Risk Tier</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="ioc-table-body">
+                                        <tr>
+                                            <td colspan="6" class="empty-row">
+                                                No IOCs logged in state. Ingest file streams to populate indicators.
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </article>
+                    </section>
+                </div>
+
+                <!-- TAB 4: CAMPAIGN REPORTS -->
+                <div id="view-reports" class="tab-view">
+                    <div class="page-title">
+                        <h1>Campaign Reports</h1>
+                        <p>Exportable intelligence summaries synchronized from Spring Boot persistence layer.</p>
+                    </div>
+                    <section class="grid-container grid-full">
+                        <article class="card">
+                            <div class="card-header">
+                                <span class="card-title">Generated Attribution Reports</span>
+                                <button class="btn-primary" style="font-size: 11px; padding: 6px 12px;" onclick="fetchCampaignReports()">
+                                    <i class="fas fa-arrows-rotate"></i> Sync REST API
+                                </button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Report Reference ID</th>
+                                            <th>Target Campaign</th>
+                                            <th>Timestamp</th>
+                                            <th>Status</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="reports-table-body">
+                                        <tr>
+                                            <td colspan="5" class="empty-row">
+                                                <i class="fas fa-spinner fa-spin" style="font-size: 20px; margin-bottom: 8px; display: block; color: var(--color-primary);"></i>
+                                                Connecting to <code>GET /api/v1/reports</code>...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </article>
+                    </section>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Pipeline Terminal Modal -->
+    <div id="pipeline-modal" class="modal-overlay" onclick="handleOverlayClick(event)">
+        <div class="terminal-modal">
+            <div class="terminal-header">
+                <span class="terminal-title"><i class="fas fa-terminal"></i> Pipeline Execution Matrix (Spring Boot Layer)</span>
+                <button class="terminal-close" onclick="closePipelineModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="terminal-body" id="terminal-logs">
+                <div id="terminal-cursor" class="cursor-blink"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Geolocation Floating Panel -->
+    <div id="geo-panel" class="geo-panel">
+        <div class="geo-panel-header" id="geo-panel-header">
+            <span class="geo-panel-title" id="geo-panel-title">
+                <i class="fas fa-globe"></i> <span id="geo-title-text">IP GEOLOCATION</span>
+            </span>
+            <div class="geo-panel-controls">
+                <button onclick="toggleMinimizeGeo()" title="Minimize / Restore" id="geo-minimize-btn"><i class="fas fa-minus"></i></button>
+                <button onclick="closeGeoPanel()" title="Close" class="geo-close-btn"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <div class="geo-panel-body" id="geo-panel-body">
+            <div class="geo-map-container">
+                <div id="geo-map"></div>
+            </div>
+            <div class="geo-details" id="geo-details">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
