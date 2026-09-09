@@ -1,0 +1,29 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: emailintel-backend
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 15MB
+      max-request-size: 15MB
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/emailintel}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+app:
+  upload:
+    max-size-bytes: 15728640      # 15 MB - keep in sync with spring.servlet.multipart.max-file-size
+    allowed-extensions: .eml
+    allowed-content-types: message/rfc822,application/octet-stream,text/plain
+
+logging:
+  level:
+    root: INFO
+    com.sih26106.emailintel: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} %-5level [%thread] %logger{36} - %msg%n"
